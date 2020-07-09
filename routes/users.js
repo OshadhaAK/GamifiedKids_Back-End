@@ -3,7 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-router.post('/register', function(req,res,next){
+router.post('/register', async (req,res) => {
     var user = new User({
         userName: req.body.userName,
         password: User.hashPassword(req.body.password),
@@ -22,7 +22,7 @@ router.post('/register', function(req,res,next){
     });
 });
 
-router.post('/login', function(req,res,next){
+router.post('/login', async(req,res) => {
     let promise = User.findOne({userName: req.body.userName}).exec();
 
     promise.then(function(doc){
@@ -48,7 +48,24 @@ router.post('/login', function(req,res,next){
 
 });
 
-router.get('/username', verifyToken, function(req,res,next){
+router.get("/login/:userName", async (req,res) => {
+    try {
+        const id = req.params.userName;
+        const user = await User.findOne({userName: id}, (error, result) => {
+            if(error) throw error;
+            res.status(200).json(result);
+        });
+        if(user) {
+            res.status(200).json(user);
+        }else {
+            res.status(404).json({ message: "No valid entry found" });
+        }
+    }catch (err) {
+        res.status(500).json({ message: err });
+    }    
+});
+
+router.get('/username', verifyToken, async (req,res) => {
     return res.status(200).json(decodedToken.userName);
 });
 
