@@ -54,7 +54,7 @@ router.post('/register', async function (req, res) {
         grade: req.body.grade
     });
     console.log(user)
-    var imageUri = process.env.img;
+    var imageUri = req.body.image;
     getFaceId(imageUri, function (response) {
         console.log(response[0].faceId);
         user.faceId = response[0].faceId;
@@ -103,14 +103,14 @@ router.post('/login', async (req, res) => {
 router.post('/facelogin', async (req,res) => {
     let promise = User.findOne({studentname: req.body.studentname}).exec();
     
-    var imageUri = process.env.img;
+    var imageUri = req.body.image;
  
     promise.then(function (doc) {
         if(doc) {
-            console.log(doc.faceId)
+            console.log("faceId2",doc.faceId)
             getFaceId(imageUri, function (response) {
                 var faceId2 = response[0].faceId; 
-                console.log(faceId2); 
+                console.log("faceId2",faceId2); 
                 verifyId(doc.faceId, faceId2, function(response) {
                     console.log(JSON.parse(response))
                     console.log(JSON.parse(response).isIdentical)
