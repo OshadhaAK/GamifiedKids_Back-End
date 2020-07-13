@@ -119,7 +119,7 @@ router.post('/facelogin', async (req,res) => {
                         console.log("authenticated")
                         let token = jwt.sign({ studentname: doc.studentname }, 'secret', { expiresIn: '2h' });
 
-                        return res.status(200).json({ token: token, message: 'Authenticated' });
+                        return res.status(200).json(token);
                     }
                     else{
                         console.log("Not authenticated")
@@ -140,10 +140,24 @@ router.post('/facelogin', async (req,res) => {
     
 });
 
-router.get("/login/:userName", async (req, res) => {
+router.get("/login/:username", async (req, res) => {
     try {
-        const id = req.params.userName;
-        const user = await User.findOne({ userName: id });
+        const id = req.params.username;
+        const user = await User.findOne({ username: id });
+        if (user) {
+            res.status(200).json(user);
+        } else {
+            res.status(404).json({ message: "No valid entry found" });
+        }
+    } catch (err) {
+        res.status(500).json({ message: err });
+    }
+});
+
+router.get("/facelogin/:studentname", async (req, res) => {
+    try {
+        const id = req.params.studentname;
+        const user = await User.findOne({ studentname: id });
         if (user) {
             res.status(200).json(user);
         } else {
@@ -155,7 +169,12 @@ router.get("/login/:userName", async (req, res) => {
 });
 
 router.get('/username', verifyToken, async (req, res) => {
-    return res.status(200).json(decodedToken.userName);
+    return res.status(200).json(decodedToken.username);
+});
+
+
+router.get('/studentname', verifyToken, async (req, res) => {
+    return res.status(200).json(decodedToken.studentname);
 });
 
 var decodedToken = '';
