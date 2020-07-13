@@ -27,6 +27,24 @@ function getFaceId(imageUri, callBack) {
     });
 }
 
+function verifyId(faceId1, faceId2, callBack) {
+    var options = {
+        'method': 'POST',
+        'url': process.env.FACE_API_HOST + process.env.FACE_API_PATH_VERIFY,
+        'headers': {
+          'Ocp-Apim-Subscription-Key': process.env.FACE_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({"faceId1":"19974def-7cf9-44c4-8477-266e80feea9e","faceId2":"dafbe818-8bf6-45bf-892c-73000ab07d00"})
+      
+      };
+      request(options, function (error, response) { 
+        var results = response.body;
+        return callBack(results);
+      });
+      
+}
+
 router.post('/register', async function (req, res) {
     // console.log("be hit", req.body)
     var user = new User({
@@ -57,12 +75,12 @@ router.post('/register', async function (req, res) {
 });
 
 router.post('/login', async (req, res) => {
-    let promise = User.findOne({ userName: req.body.userName }).exec();
+    let promise = User.findOne({ username: req.body.username }).exec();
 
     promise.then(function (doc) {
         if (doc) {
             if (doc.isValid(req.body.password)) {
-                let token = jwt.sign({ userName: doc.userName }, 'secret', { expiresIn: '2h' });
+                let token = jwt.sign({ username: doc.username }, 'secret', { expiresIn: '2h' });
 
                 return res.status(200).json(token);
             }
@@ -80,6 +98,46 @@ router.post('/login', async (req, res) => {
     });
 
 
+});
+
+router.post('/facelogin', async (req,res) => {
+    let promise = User.findOne({studentname: req.body.studentname}).exec();
+    
+    var imageUri = process.env.img;
+ 
+    promise.then(function (doc) {
+        if(doc) {
+            console.log(doc.faceId)
+            getFaceId(imageUri, function (response) {
+                var faceId2 = response[0].faceId; 
+                console.log(faceId2); 
+                verifyId(doc.faceId, faceId2, function(response) {
+                    console.log(JSON.parse(response))
+                    console.log(JSON.parse(response).isIdentical)
+                    console.log(parseFloat(JSON.parse(response).confidence))
+                    if(parseFloat(JSON.parse(response).confidence) >= parseFloat(process.env.FACE_API_CONFIDENCE_TRESHOLD)){
+                        console.log("authenticated")
+                        let token = jwt.sign({ studentname: doc.studentname }, 'secret', { expiresIn: '2h' });
+
+                        return res.status(200).json({ token: token, message: 'Authenticated' });
+                    }
+                    else{
+                        console.log("Not authenticated")
+                        return res.status(500).json({ message: 'Not authenticated' });
+                    }
+                });
+            });
+            
+        }
+        else{
+            return res.status(500).json({ message: 'User not Found!' });
+        }
+    });
+
+    promise.catch(function (err) {
+        return res.status(500).json({ message: 'Internal Error' });
+    });
+    
 });
 
 router.get("/login/:userName", async (req, res) => {
