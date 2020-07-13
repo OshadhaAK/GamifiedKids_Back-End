@@ -2,16 +2,20 @@ const mongoose = require("mongoose");
 const bcrypt = require('bcrypt');
 
 const UserSchema = mongoose.Schema({
-    userName: {
-      type: String,
-      require: true,
-      index: {unique:true}
+    username: {
+        type: String,
+        require: true,
+        index: { unique: true }
+    },
+    studentname: {
+        type: String,
+        require: true
     },
     password: {
         type: String,
         required: true
     },
-    faceID: {
+    faceId: {
         type: String,
         required: true
     },
@@ -21,11 +25,11 @@ const UserSchema = mongoose.Schema({
     }
 });
 
-UserSchema.statics.hashPassword = function hashPassword(password){
-    return bcrypt.hashSync(password,10);
+UserSchema.statics.hashPassword = function hashPassword(password) {
+    return bcrypt.hashSync(password, 10);
 }
 
-UserSchema.methods.isValid = function isValid(hashedpassword){
+UserSchema.methods.isValid = function (hashedpassword) {
     return bcrypt.compareSync(hashedpassword, this.password);
 }
 
