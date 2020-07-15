@@ -20,7 +20,7 @@ function getFaceId(imageUri, callBack) {
         body: Buffer.from(imageUri.split(",")[1], 'base64')
     };
     request(options, function (error, response) {
-        var statusCode = response.statusCode;
+        
         var finalData = JSON.parse(response.body.toString());
         return callBack(finalData);
         // console.log(JSON.parse(response.body)[0].faceId)
@@ -35,7 +35,7 @@ function verifyId(faceId1, faceId2, callBack) {
           'Ocp-Apim-Subscription-Key': process.env.FACE_API_KEY,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({"faceId1":"19974def-7cf9-44c4-8477-266e80feea9e","faceId2":"dafbe818-8bf6-45bf-892c-73000ab07d00"})
+        body: JSON.stringify({"faceId1": faceId1,"faceId2": faceId2})
       
       };
       request(options, function (error, response) { 
@@ -46,7 +46,7 @@ function verifyId(faceId1, faceId2, callBack) {
 }
 
 router.post('/register', async function (req, res) {
-    // console.log("be hit", req.body)
+    console.log("be hit", req.body)
     var user = new User({
         username: req.body.username,
         studentname: req.body.studentname,
@@ -107,7 +107,7 @@ router.post('/facelogin', async (req,res) => {
  
     promise.then(function (doc) {
         if(doc) {
-            console.log("faceId2",doc.faceId)
+            console.log("faceId1",doc.faceId)
             getFaceId(imageUri, function (response) {
                 var faceId2 = response[0].faceId; 
                 console.log("faceId2",faceId2); 
@@ -135,6 +135,7 @@ router.post('/facelogin', async (req,res) => {
     });
 
     promise.catch(function (err) {
+        console.log("promise err")
         return res.status(500).json({ message: 'Internal Error' });
     });
     
