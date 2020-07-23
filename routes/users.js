@@ -8,6 +8,7 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 var request = require('request');
+const { type } = require("os");
 
 function getFaceId(imageUri, callBack) {
     var options = {
@@ -20,7 +21,7 @@ function getFaceId(imageUri, callBack) {
         body: Buffer.from(imageUri.split(",")[1], 'base64')
     };
     request(options, function (error, response) {
-        
+
         var finalData = JSON.parse(response.body.toString());
         return callBack(finalData);
         // console.log(JSON.parse(response.body)[0].faceId)
@@ -32,17 +33,17 @@ function verifyId(faceId1, faceId2, callBack) {
         'method': 'POST',
         'url': process.env.FACE_API_HOST + process.env.FACE_API_PATH_VERIFY,
         'headers': {
-          'Ocp-Apim-Subscription-Key': process.env.FACE_API_KEY,
-          'Content-Type': 'application/json'
+            'Ocp-Apim-Subscription-Key': process.env.FACE_API_KEY,
+            'Content-Type': 'application/json'
         },
-        body: JSON.stringify({"faceId1": faceId1,"faceId2": faceId2})
-      
-      };
-      request(options, function (error, response) { 
+        body: JSON.stringify({ "faceId1": faceId1, "faceId2": faceId2 })
+
+    };
+    request(options, function (error, response) {
         var results = response.body;
         return callBack(results);
-      });
-      
+    });
+
 }
 
 router.post('/register', async function (req, res) {
@@ -51,28 +52,46 @@ router.post('/register', async function (req, res) {
         username: req.body.username,
         studentname: req.body.studentname,
         password: User.hashPassword(req.body.password),
-        grade: req.body.grade
+        grade: req.body.grade,
+        faceId: req.body.faceId
     });
     console.log(user)
-    var imageUri = req.body.image;
-    getFaceId(imageUri, function (response) {
-        console.log(response[0].faceId);
-        user.faceId = response[0].faceId;
-        let promise = user.save();
+    let promise = user.save();
 
-        promise.then(function (doc) {
-            return res.status(201).json(doc);
+    promise.then(function (doc) {
+        return res.status(201).json(doc);
 
-        });
+    });
 
-        promise.catch(function (err) {
-            return res.status(500).json({ message: 'Error registering User!' });
-        });
-    })
+    promise.catch(function (err) {
+        return res.status(500).json({ message: 'Error registering User!' });
+    });
 
 
 
 });
+
+router.post('/detectface', async function (req, res) {
+    var imageUri = req.body.image;
+    getFaceId(imageUri, function (response) {
+        if (response[0] != undefined) {
+            if (response[0].faceId) {
+                console.log(response[0].faceId)
+                return res.status(200).json(response[0].faceId);
+            }
+            else {
+                return res.status(500).json({ message: 'Face not detected!' });
+            }
+        }
+        else {
+            return res.status(500).json({ message: 'No Face detected!' });
+        }
+    });
+
+
+
+});
+
 
 router.post('/login', async (req, res) => {
     let promise = User.findOne({ username: req.body.username }).exec();
@@ -89,7 +108,7 @@ router.post('/login', async (req, res) => {
             }
         }
         else {
-            return res.status(500).json({ message: 'User not Found!' });
+            return res.status(500).json('User not Found!');
         }
     });
 
@@ -100,36 +119,42 @@ router.post('/login', async (req, res) => {
 
 });
 
-router.post('/facelogin', async (req,res) => {
-    let promise = User.findOne({studentname: req.body.studentname}).exec();
-    
-    var imageUri = req.body.image;
- 
-    promise.then(function (doc) {
-        if(doc) {
-            console.log("faceId1",doc.faceId)
-            getFaceId(imageUri, function (response) {
-                var faceId2 = response[0].faceId; 
-                console.log("faceId2",faceId2); 
-                verifyId(doc.faceId, faceId2, function(response) {
-                    console.log(JSON.parse(response))
-                    console.log(JSON.parse(response).isIdentical)
-                    console.log(parseFloat(JSON.parse(response).confidence))
-                    if(parseFloat(JSON.parse(response).confidence) >= parseFloat(process.env.FACE_API_CONFIDENCE_TRESHOLD)){
-                        console.log("authenticated")
-                        let token = jwt.sign({ studentname: doc.studentname }, 'secret', { expiresIn: '2h' });
+router.post('/facelogin', async (req, res) => {
+    let promise = User.findOne({ studentname: req.body.studentname }).exec();
 
-                        return res.status(200).json(token);
-                    }
-                    else{
-                        console.log("Not authenticated")
-                        return res.status(500).json({ message: 'Not authenticated' });
-                    }
-                });
+    var imageUri = req.body.image;
+
+    promise.then(function (doc) {
+        if (doc) {
+            console.log("faceId1", doc.faceId)
+            getFaceId(imageUri, function (response) {
+                console.log(response[0])
+                if (response[0] != undefined) {
+                    var faceId2 = response[0].faceId;
+                    console.log("faceId2", faceId2);
+                    verifyId(doc.faceId, faceId2, function (response) {
+                        console.log(JSON.parse(response));
+                        if (parseFloat(JSON.parse(response).confidence) >= parseFloat(process.env.FACE_API_CONFIDENCE_TRESHOLD)) {
+                            console.log("authenticated")
+                            let token = jwt.sign({ studentname: doc.studentname }, 'secret', { expiresIn: '2h' });
+
+                            return res.status(200).json(token);
+                        }
+                        else {
+                            console.log("Not authenticated")
+                            return res.status(500).json({ message: 'Not authenticated' });
+                        }
+                    });
+                }
+                else {
+                    console.log("face not detected")
+                    return res.status(500).json({ message: 'face not detected' });
+                }
             });
-            
+
         }
-        else{
+        else {
+            console.log("User not Found!")
             return res.status(500).json({ message: 'User not Found!' });
         }
     });
@@ -138,7 +163,7 @@ router.post('/facelogin', async (req,res) => {
         console.log("promise err")
         return res.status(500).json({ message: 'Internal Error' });
     });
-    
+
 });
 
 router.get("/login/:username", async (req, res) => {
